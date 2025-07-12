@@ -81,6 +81,37 @@ exports.getMyScans = async (req, res) => {
   }
 };
 
+
+exports.getMyScanById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // تحقق من صلاحية الـ ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid scan ID." });
+    }
+
+    // ابحث عن الـ scan وتأكد إنها للمستخدم الحالي
+    const scan = await ScanModel.findOne({ _id: id, user: req.user._id }).select("-__v");
+
+    if (!scan) {
+      return res.status(404).json({ message: "Scan not found or not authorized." });
+    }
+
+    res.status(200).json({
+      message: "Scan fetched successfully",
+      data: scan,
+    });
+  } catch (error) {
+    console.error("Get scan by ID error:", error);
+    res.status(500).json({ message: "Server error: " + error.message });
+  }
+};
+
+
+
+
+
 // Delete a Scan by ID
 exports.deleteScan = async (req, res) => {
   try {

@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   uploadScan,
   getMyScans,
+  getMyScanById,
   deleteScan,
   deleteAllUserScans,
   exportScanToPDF,
@@ -20,9 +21,16 @@ router.post(
   uploadScan
 );
 
+
+//Get All User's Scan
 router.get('/my-scans', protect, getMyScans);
 
-// Delete user's scan
+
+//Get Single Scan By ID
+router.get("/my/:id", protect, getMyScanById);
+
+
+// Delete user's scan By ID
 router.delete('/delete/:id', protect, deleteScan);
 
 //Delete All Scans
