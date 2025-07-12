@@ -4,6 +4,7 @@ const {
   uploadScan,
   getMyScans,
   deleteScan,
+  deleteAllUserScans,
   exportScanToPDF,
 } = require("../controllers/scanController");
 const { protect } = require("../middlewares/authMiddleware");
@@ -23,6 +24,10 @@ router.get('/my-scans', protect, getMyScans);
 
 // Delete user's scan
 router.delete('/delete/:id', protect, deleteScan);
+
+//Delete All Scans
+router.delete("/delete-all",protect, deleteAllUserScans);
+
 
 // Exports user's scan to PDF
 router.get('/export/:id', protect, exportScanToPDF);

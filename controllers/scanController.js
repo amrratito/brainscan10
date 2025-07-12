@@ -121,6 +121,34 @@ exports.deleteScan = async (req, res) => {
   }
 };
 
+
+exports.deleteAllUserScans = async (req, res) => {
+  try {
+    // تأكد من أن المستخدم موجود
+    if (!req.user || !req.user._id) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized. User info missing." });
+    }
+
+    const userId = req.user._id;
+
+    // حذف كل السجلات المتعلقة بالمستخدم
+    const result = await ScanModel.deleteMany({ user: userId });
+
+    res.status(200).json({
+      message: "All scans deleted successfully for this user.",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Delete all user scans error:", error);
+    res.status(500).json({ message: "Server error: " + error.message });
+  }
+};
+
+
+
+
 // Export Scans To PDF
 exports.exportScanToPDF = async (req, res) => {
   try {
