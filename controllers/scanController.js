@@ -52,7 +52,7 @@ exports.uploadScan = async (req, res) => {
 
     const createdScan = await ScanModel.create({
       user: userId,
-      image_path: savePath,
+      image_path: filename,
       ...result,
     });
 
@@ -124,27 +124,113 @@ exports.deleteScan = async (req, res) => {
 // Export Scans To PDF
 exports.exportScanToPDF = async (req, res) => {
   try {
-    res.setHeader('Content-Disposition', 'attachment; filename="test.pdf"');
+    const scan = await ScanModel.findById(req.params.id).populate('user');
+
+    if (!scan) {
+      return res.status(404).json({ message: 'Scan not found' });
+    }
+
+    if (scan.user._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const filename = `ScanReport_${scan._id}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/pdf');
 
-    const doc = new PDFDocument();
-    let buffers = [];
-    doc.on('data', buffers.push.bind(buffers));
-    doc.on('end', () => {
-      let pdfData = Buffer.concat(buffers);
-      res.end(pdfData);
-    });
+    const doc = new PDFDocument({ margin: 50 });
+    doc.pipe(res);
 
-    doc.fontSize(25).text('Test PDF is working!', 100, 100);
-    doc.end();
+    // Register font
+    const fontPath = path.join(__dirname, '../fonts/DejaVuSans.ttf');
+    doc.registerFont('CustomFont', fontPath);
+    doc.font('CustomFont');
+
+    // Title
+    doc
+      .fontSize(22)
+      .fillColor('#1a237e')
+      .text('BrainScan Diagnosis Report', { align: 'center' })
+      .moveDown(1.5);
+
+    // User Info
+    doc
+      .fontSize(14)
+      .fillColor('black')
+      .text(`Name: ${scan.user.userName}`)
+      .text(`Email: ${scan.user.email}`)
+      .text(`Date: ${scan.createdAt.toDateString()}`)
+      .moveDown();
+
+    // Diagnosis Result
+    doc
+      .fontSize(16)
+      .fillColor('#0d47a1')
+      .text('Diagnosis Result', { underline: true })
+      .moveDown(0.5);
+
+    doc
+      .fontSize(14)
+      .fillColor('black')
+      .text(`Diagnosis: ${scan.label || 'Not available'}`)
+      .text(`Probability: ${scan.probability || 'Not available'}`)
+      .moveDown();
+
+    // Scan Image Section
+    doc
+      .fontSize(16)
+      .fillColor('#0d47a1')
+      .text('Scan Image', { align: 'center' })
+      .moveDown();
+
+    if (scan.image_path) {
+      console.log('🧾 scan.image_path from DB:', scan.image_path);
+
+      const imageFileName = scan.image_path.replace(/^uploads[\\/]/, '');
+      console.log('📂 Final file name:', imageFileName);
+
+      const imagePath = path.resolve(path.join(__dirname, `../uploads/${imageFileName}`));
+      console.log('📁 Final full path:', imagePath);
+
+      if (fs.existsSync(imagePath)) {
+        console.log('✅ Image found, adding to PDF');
+        doc.image(imagePath, {
+          fit: [450, 350],
+          align: 'center',
+          valign: 'center',
+        });
+      } else {
+        console.warn('❌ Image NOT found at:', imagePath);
+        doc
+          .fontSize(14)
+          .fillColor('red')
+          .text('⚠️ Image file not found on the server.', { align: 'center' });
+      }
+    } else {
+      doc
+        .fontSize(14)
+        .fillColor('red')
+        .text('⚠️ No image path provided for this scan.', { align: 'center' });
+    }
+
+    await new Promise((resolve, reject) => {
+      doc.end();
+      doc.on('end', () => {
+        console.log('✅ PDF generation finished');
+        resolve();
+      });
+      doc.on('error', (err) => {
+        console.error('❌ PDF generation error:', err);
+        reject(err);
+      });
+    });
   } catch (error) {
-    console.error("❌ PDF export error:", error);
+    console.error('❌ PDF export error:', error);
     if (!res.headersSent) {
       res.status(500).json({ message: error.message });
     }
   }
 };
-
 
 
 
